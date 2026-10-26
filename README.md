@@ -116,7 +116,7 @@ El proyecto se entrega en paquetes ZIP. `Cristalia_completo.zip` trae todo (idea
 > InfinityFree puede tardar unos minutos en activar el subdominio y el certificado SSL. Si el instalador no puede escribir `app/config.php`, muestra el contenido para crearlo a mano desde el administrador de archivos.
 
 ## Usuarios de demostración
-(Solo si se marcó la casilla de datos de demostración; contraseña **`Cristalia2026`**)
+(Solo si se marcó la casilla de datos de demostración. El instalador genera una contraseña temporal aleatoria y la muestra al finalizar.)
 
 | Usuario | Rol | Sucursal |
 |---|---|---|
