@@ -4,8 +4,8 @@
 -- =====================================================================
 
 INSERT INTO configuracion (clave, valor) VALUES
-('empresa_nombre', 'Empresa de demostración'),
-('empresa_rif', ''),
+('empresa_nombre', 'Corporación Parabrisas Venezuela, C.A.'),
+('empresa_rif', 'J-00000000-0'),
 ('empresa_direccion', ''),
 ('moneda', '$'),
 ('version_bd', '1');
