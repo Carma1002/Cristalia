@@ -1,0 +1,8 @@
+# Credenciales: se generan con el instalador, nunca se suben
+app/config.php
+# Datos generados en el servidor
+app/storage/backups/*.sql
+uploads/productos/*
+!uploads/productos/.gitkeep
+.DS_Store
+Thumbs.db
