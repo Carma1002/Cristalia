@@ -1,6 +1,6 @@
 # Cristalia
 
-**Sistema de gestión de inventario, pedidos y ventas para Corporación Parabrisas Venezuela, C.A.**
+**Sistema de gestión de inventario, pedidos y ventas para una empresa de autopartes.**
 Proyecto de trabajo de grado. Aplicación web en PHP + MySQL con arquitectura de tres capas.
 
 > *Cristalia*: gestión clara como el cristal.
@@ -120,10 +120,10 @@ El proyecto se entrega en paquetes ZIP. `Cristalia_completo.zip` trae todo (idea
 
 | Usuario | Rol | Sucursal |
 |---|---|---|
-| `ventas` | Ventas/Facturación | Caracas |
-| `almacen` | Almacén | Caracas |
-| `ventas.val` | Ventas/Facturación | Valencia |
-| `almacen.mcy` | Almacén | Maracay |
+| `ventas` | Ventas/Facturación | Sucursal principal |
+| `almacen` | Almacén | Sucursal principal |
+| `ventas.val` | Ventas/Facturación | Sucursal Demo 2 |
+| `almacen.mcy` | Almacén | Sucursal Demo 3 |
 
 El administrador es el que se crea en el instalador.
 
