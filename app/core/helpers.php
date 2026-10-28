@@ -142,20 +142,7 @@ function fecha(?string $f, bool $hora = true): string
     return $t ? date($hora ? 'd/m/Y H:i' : 'd/m/Y', $t) : '—';
 }
 
-function badge_estado(string $estado): string
-{
-    $map = [
-        'PENDIENTE' => 'warning', 'CONFIRMADO' => 'info', 'COMPLETADO' => 'success',
-        'CANCELADO' => 'secondary', 'ACTIVA' => 'success', 'ANULADA' => 'danger',
-        'ENTRADA' => 'success', 'SALIDA' => 'danger', 'AJUSTE' => 'primary',
-        'VENTA' => 'dark', 'ANULACION' => 'info',
-    ];
-    $c = $map[$estado] ?? 'secondary';
-    $txt = $c === 'warning' || $c === 'info' ? 'text-dark' : '';
-    return '<span class="badge bg-' . $c . ' ' . $txt . '">' . e($estado) . '</span>';
-}
-
-function can(string $perm): bool { return Auth::can($perm); }
+function can(string|array $perm): bool { return permitido($perm); }
 
 function selected(mixed $a, mixed $b): string { return (string)$a === (string)$b ? 'selected' : ''; }
 function checked(bool $c): string { return $c ? 'checked' : ''; }

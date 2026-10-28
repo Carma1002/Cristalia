@@ -1,6 +1,3 @@
-<div class="text-center py-5">
-  <i class="bi bi-shield-x display-4 text-danger"></i>
-  <h1 class="h4 mt-3">Acceso denegado</h1>
-  <p class="text-muted">Su rol no tiene permiso para esta sección. Si lo necesita, solicítelo al administrador.</p>
-  <a class="btn btn-primary" href="<?= url('dashboard') ?>">Volver al inicio</a>
+<div class="c-card reveal" style="max-width:560px;margin:40px auto">
+  <?= empty_state('shield-lock', 'Esta sección no está disponible para su rol', 'Si necesita entrar aquí, pídale al administrador que le dé el permiso en Administración → Usuarios y permisos.', '<a class="btn btn-primary" href="' . url('dashboard') . '"><i class="bi bi-house-door"></i> Volver al inicio</a>') ?>
 </div>

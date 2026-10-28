@@ -24,8 +24,9 @@ final class Producto
         $where = ['1=1'];
         $p = [];
         if (!empty($f['q'])) {
-            $where[] = '(p.codigo LIKE :q1 OR p.nombre LIKE :q2 OR p.descripcion LIKE :q3)';
-            $p['q1'] = $p['q2'] = $p['q3'] = '%' . $f['q'] . '%';
+            $where[] = "(p.codigo LIKE :q1 OR p.nombre LIKE :q2 OR p.descripcion LIKE :q3
+                         OR CONCAT(COALESCE(p.marca_vehiculo,''),' ',COALESCE(p.modelo_vehiculo,'')) LIKE :q4)";
+            $p['q1'] = $p['q2'] = $p['q3'] = $p['q4'] = '%' . $f['q'] . '%';
         }
         if (!empty($f['tipo_id']))  { $where[] = 'p.tipo_id = :tipo'; $p['tipo'] = (int)$f['tipo_id']; }
         if (!empty($f['marca']))    { $where[] = 'p.marca_vehiculo = :marca'; $p['marca'] = $f['marca']; }
@@ -47,6 +48,17 @@ final class Producto
                      WHERE $alias.producto_id = p.id AND $alias.sucursal_id = :suc_$alias)";
         };
         if (!empty($f['solo_disponibles'])) $where[] = $stockExpr('ex2') . ' > 0';
+        // Estado de stock: disponible | bajo (en o bajo el mínimo en alguna sucursal) | agotado
+        switch ($f['estado'] ?? '') {
+            case 'disponible': $where[] = $stockExpr('ex3') . ' > 0'; break;
+            case 'agotado':    $where[] = $stockExpr('ex3') . ' <= 0'; break;
+            case 'bajo':
+                $where[] = "p.stock_minimo > 0 AND EXISTS (SELECT 1 FROM sucursales sb LEFT JOIN existencias eb
+                              ON eb.producto_id = p.id AND eb.sucursal_id = sb.id
+                            WHERE sb.activo = 1" . ($suc ? ' AND sb.id = :suc_b' : '') . " AND COALESCE(eb.cantidad,0) <= p.stock_minimo)";
+                if ($suc) $p['suc_b'] = $suc;
+                break;
+        }
         $w = implode(' AND ', $where);
         $pCount = $p;
         $stockSel = $stockExpr('ex1');
@@ -61,6 +73,16 @@ final class Producto
                          WHERE $w ORDER BY $orden LIMIT :lim OFFSET :off",
             array_merge($p, ['lim' => $limit, 'off' => $offset]));
         return [$rows, $total];
+    }
+
+    /** Cantidad de productos por estado de stock con los mismos filtros (para los contadores). */
+    public static function contarEstados(array $f): array
+    {
+        $out = [];
+        foreach (['' => 'todos', 'disponible' => 'disponible', 'bajo' => 'bajo', 'agotado' => 'agotado'] as $e => $k) {
+            $out[$k] = self::buscar(array_merge($f, ['estado' => $e]), 1, 0)[1];
+        }
+        return $out;
     }
 
     /** Existencias de un producto en cada sucursal activa (incluye reservado y disponible). */

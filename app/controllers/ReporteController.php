@@ -1,15 +1,16 @@
 <?php
+/**
+ * Reportes e indicadores: 2 pantallas.
+ *  - Ventas: por día, mes, sucursal, vendedor o método de pago + productos más vendidos.
+ *  - Inventario: existencias, valor, estado de stock y rotación por producto.
+ * Ambas se exportan a PDF y a hoja de cálculo (Excel).
+ */
 final class ReporteController extends Controller
 {
-    public function index(): void
+    /** Período y sucursal comunes. */
+    private function periodo(string $porDefectoDesde): array
     {
-        $this->view('reportes/index', ['title' => 'Reportes']);
-    }
-
-    /** Filtros comunes de período y sucursal. */
-    private function periodo(): array
-    {
-        $desde = (string)input('desde', date('Y-m-01'));
+        $desde = (string)input('desde', $porDefectoDesde);
         $hasta = (string)input('hasta', date('Y-m-d'));
         if (!strtotime($desde) || !strtotime($hasta)) throw new AppException('Fechas inválidas.');
         if ($desde > $hasta) [$desde, $hasta] = [$hasta, $desde];
@@ -24,96 +25,66 @@ final class ReporteController extends Controller
         return in_array($f, ['pdf', 'xlsx'], true) ? $f : null;
     }
 
-    public function inventario(): void
-    {
-        $suc = $this->sucursalFiltro();
-        $tipo = input_int('tipo_id');
-        $bajo = (bool)input('bajo');
-        $rows = Reportes::inventario($suc, $tipo, $bajo);
-        $tot = ['unidades' => array_sum(array_column($rows, 'cantidad')),
-                'costo' => array_sum(array_column($rows, 'valor_costo')),
-                'venta' => array_sum(array_column($rows, 'valor_venta'))];
-        if ($fmt = $this->formato()) {
-            Exportador::enviar($fmt, 'Reporte de inventario' . ($bajo ? ' (stock bajo)' : ''),
-                ($suc ? 'Sucursal ' . Sucursal::nombre($suc) : 'Todas las sucursales') . ' · Corte al ' . date('d/m/Y H:i'),
-                [['Código', 'codigo', 'texto', 28], ['Producto', 'nombre', 'texto', 70], ['Tipo', 'tipo', 'texto', 35],
-                 ['Sucursal', 'sucursal', 'texto', 35], ['Exist.', 'cantidad', 'entero', 16], ['Mín.', 'stock_minimo', 'entero', 14],
-                 ['Costo', 'costo', 'dinero', 20], ['Precio', 'precio', 'dinero', 20], ['Valor costo', 'valor_costo', 'dinero', 24],
-                 ['Valor venta', 'valor_venta', 'dinero', 24]],
-                $rows, ['Unidades' => $tot['unidades'], 'Valor al costo' => $tot['costo'], 'Valor a precio de venta' => $tot['venta']]);
-        }
-        $this->view('reportes/inventario', ['title' => 'Reporte de inventario', 'rows' => $rows, 'tot' => $tot,
-            'suc' => $suc, 'tipo' => $tipo, 'bajo' => $bajo, 'sucursales' => Sucursal::delUsuario(), 'tipos' => Producto::tipos()]);
-    }
-
     public function ventas(): void
     {
-        [$desde, $hasta, $suc, $txt] = $this->periodo();
+        [$desde, $hasta, $suc, $txt] = $this->periodo(date('Y-m-01'));
         $agrupar = (string)input('agrupar', 'dia');
+        if (!in_array($agrupar, ['dia', 'mes', 'sucursal', 'vendedor', 'metodo'], true)) $agrupar = 'dia';
+        $etq = ['dia' => 'Día', 'mes' => 'Mes', 'sucursal' => 'Sucursal', 'vendedor' => 'Vendedor', 'metodo' => 'Método de pago'][$agrupar];
         $rows = Reportes::ventasAgrupadas($desde, $hasta, $agrupar, $suc);
+        $top = Reportes::topProductos($desde, $hasta, $suc, 100);
         $tot = ['ventas' => array_sum(array_column($rows, 'ventas')), 'subtotal' => array_sum(array_column($rows, 'subtotal')),
                 'descuento' => array_sum(array_column($rows, 'descuento')), 'total' => array_sum(array_column($rows, 'total'))];
-        $etq = ['dia' => 'Día', 'mes' => 'Mes', 'sucursal' => 'Sucursal', 'vendedor' => 'Vendedor', 'metodo' => 'Método de pago'][$agrupar] ?? 'Grupo';
+
         if ($fmt = $this->formato()) {
-            Exportador::enviar($fmt, "Reporte de ventas por " . mb_strtolower($etq), $txt,
+            if (input('tabla') === 'productos') {
+                Exportador::enviar($fmt, 'Productos más vendidos', $txt,
+                    [['Código', 'codigo', 'texto', 35], ['Producto', 'nombre', 'texto', 90], ['Unidades', 'unidades', 'entero', 25], ['Monto', 'monto', 'dinero', 35]],
+                    $top, ['Unidades' => array_sum(array_column($top, 'unidades')), 'Monto' => array_sum(array_column($top, 'monto'))], 'P');
+            }
+            foreach ($rows as &$r) if ($agrupar === 'dia') $r['grupo'] = fecha($r['grupo'], false);
+            unset($r);
+            Exportador::enviar($fmt, 'Reporte de ventas por ' . mb_strtolower($etq), $txt,
                 [[$etq, 'grupo', 'texto', 60], ['N° ventas', 'ventas', 'entero', 25], ['Subtotal', 'subtotal', 'dinero', 35],
                  ['Descuento', 'descuento', 'dinero', 30], ['Total', 'total', 'dinero', 35]],
                 $rows, ['Ventas' => $tot['ventas'], 'Total vendido' => $tot['total']], 'P');
         }
-        $this->view('reportes/ventas', ['title' => 'Reporte de ventas', 'rows' => $rows, 'tot' => $tot, 'desde' => $desde,
+        $this->view('reportes/ventas', ['title' => 'Reporte de ventas', 'rows' => $rows, 'top' => $top, 'tot' => $tot, 'desde' => $desde,
             'hasta' => $hasta, 'suc' => $suc, 'agrupar' => $agrupar, 'etq' => $etq, 'sucursales' => Sucursal::delUsuario()]);
     }
 
-    public function productos(): void
+    public function inventario(): void
     {
-        [$desde, $hasta, $suc, $txt] = $this->periodo();
-        $rows = Reportes::topProductos($desde, $hasta, $suc, 200);
-        if ($fmt = $this->formato()) {
-            Exportador::enviar($fmt, 'Ventas por producto', $txt,
-                [['Código', 'codigo', 'texto', 35], ['Producto', 'nombre', 'texto', 90], ['Unidades', 'unidades', 'entero', 25], ['Monto', 'monto', 'dinero', 35]],
-                $rows, ['Unidades' => array_sum(array_column($rows, 'unidades')), 'Monto' => array_sum(array_column($rows, 'monto'))], 'P');
-        }
-        $this->view('reportes/productos', ['title' => 'Ventas por producto', 'rows' => $rows, 'desde' => $desde,
-            'hasta' => $hasta, 'suc' => $suc, 'sucursales' => Sucursal::delUsuario()]);
-    }
-
-    public function movimientos(): void
-    {
-        [$desde, $hasta, $suc, $txt] = $this->periodo();
-        $tipo = input('tipo', '') ?: null;
-        $rows = Reportes::movimientos($desde, $hasta, $suc, $tipo);
-        foreach ($rows as &$r) $r['fecha_f'] = fecha($r['fecha']);
-        unset($r);
-        if ($fmt = $this->formato()) {
-            Exportador::enviar($fmt, 'Movimientos de inventario' . ($tipo ? " ($tipo)" : ''), $txt,
-                [['Fecha', 'fecha_f', 'texto', 28], ['Tipo', 'tipo', 'texto', 22], ['Código', 'codigo', 'texto', 25], ['Producto', 'nombre', 'texto', 55],
-                 ['Sucursal', 'sucursal', 'texto', 30], ['Cant.', 'cantidad', 'entero', 14], ['Antes', 'stock_anterior', 'entero', 14],
-                 ['Después', 'stock_resultante', 'entero', 16], ['Motivo', 'motivo', 'texto', 50], ['Usuario', 'usuario', 'texto', 26]],
-                $rows);
-        }
-        $this->view('reportes/movimientos', ['title' => 'Reporte de movimientos', 'rows' => $rows, 'desde' => $desde,
-            'hasta' => $hasta, 'suc' => $suc, 'tipo' => $tipo, 'sucursales' => Sucursal::delUsuario()]);
-    }
-
-    public function rotacion(): void
-    {
-        $desde = (string)input('desde', date('Y-m-d', strtotime('-90 days')));
-        $_GET['desde'] = $desde;
-        [$desde, $hasta, $suc, $txt] = $this->periodo();
-        $rows = Reportes::rotacion($desde, $hasta, $suc);
+        [$desde, $hasta, $suc, $txt] = $this->periodo(date('Y-m-d', strtotime('-90 days')));
+        $tipo = input_int('tipo_id');
+        $reponer = (bool)input('reponer');
+        $rows = Reportes::inventarioDetallado($suc, $tipo, $reponer, $desde, $hasta);
+        $orden = (string)input('orden', '');
+        $cmp = match ($orden) {
+            'rotacion' => fn($a, $b) => [(float)($b['rotacion'] ?? 0), $b['vendidas']] <=> [(float)($a['rotacion'] ?? 0), $a['vendidas']],
+            'valor' => fn($a, $b) => $b['valor_costo'] <=> $a['valor_costo'],
+            'existencia' => fn($a, $b) => $a['existencia'] <=> $b['existencia'],
+            default => null,
+        };
+        if ($cmp) usort($rows, $cmp);
         foreach ($rows as &$r) {
-            $r['rot_txt'] = $r['rotacion'] === null ? 'Sin stock promedio' : num($r['rotacion'], 2);
-            $r['dias_txt'] = $r['dias_inventario'] === null ? '—' : $r['dias_inventario'];
+            $r['rot_txt'] = $r['rotacion'] === null ? 'Sin stock' : num($r['rotacion'], 2);
+            $r['dias_txt'] = $r['dias_inventario'] === null ? '—' : (string)$r['dias_inventario'];
         }
         unset($r);
+        $tot = ['unidades' => array_sum(array_column($rows, 'existencia')), 'costo' => array_sum(array_column($rows, 'valor_costo')),
+                'venta' => array_sum(array_column($rows, 'valor_venta')),
+                'reponer' => count(array_filter($rows, fn($r) => $r['estado'] !== 'Disponible')), 'vendidas' => array_sum(array_column($rows, 'vendidas'))];
+
         if ($fmt = $this->formato()) {
-            Exportador::enviar($fmt, 'Rotación de inventario', $txt . ' · Rotación = vendidas / existencia promedio',
-                [['Código', 'codigo', 'texto', 28], ['Producto', 'nombre', 'texto', 75], ['Exist. inicial', 'stock_inicial', 'entero', 24],
-                 ['Exist. final', 'stock_final', 'entero', 22], ['Promedio', 'stock_promedio', 'num', 22], ['Vendidas', 'vendidas', 'entero', 20],
-                 ['Rotación', 'rot_txt', 'texto', 28], ['Días inv.', 'dias_txt', 'texto', 20]],
-                $rows);
+            Exportador::enviar($fmt, 'Reporte de inventario' . ($reponer ? ' · productos por reponer' : ''),
+                ($suc ? 'Sucursal ' . Sucursal::nombre($suc) : 'Todas las sucursales') . ' · Existencias al ' . date('d/m/Y H:i') . ' · Rotación del ' . fecha($desde, false) . ' al ' . fecha($hasta, false),
+                [['Código', 'codigo', 'texto', 26], ['Producto', 'nombre', 'texto', 62], ['Tipo', 'tipo', 'texto', 30], ['Exist.', 'existencia', 'entero', 14],
+                 ['Mín.', 'stock_minimo', 'entero', 12], ['Estado', 'estado', 'texto', 22], ['Valor costo', 'valor_costo', 'dinero', 24],
+                 ['Valor venta', 'valor_venta', 'dinero', 24], ['Vendidas', 'vendidas', 'entero', 16], ['Rotación', 'rot_txt', 'texto', 18], ['Días inv.', 'dias_txt', 'texto', 16]],
+                $rows, ['Unidades' => $tot['unidades'], 'Valor al costo' => $tot['costo'], 'Valor a precio de venta' => $tot['venta'], 'Productos por reponer' => $tot['reponer']]);
         }
-        $this->view('reportes/rotacion', ['title' => 'Rotación de inventario', 'rows' => $rows, 'desde' => $desde,
-            'hasta' => $hasta, 'suc' => $suc, 'sucursales' => Sucursal::delUsuario()]);
+        $this->view('reportes/inventario', ['title' => 'Reporte de inventario', 'rows' => $rows, 'tot' => $tot, 'desde' => $desde, 'hasta' => $hasta,
+            'suc' => $suc, 'tipo' => $tipo, 'reponer' => $reponer, 'orden' => $orden, 'sucursales' => Sucursal::delUsuario(), 'tipos' => Producto::tipos()]);
     }
 }

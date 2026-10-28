@@ -55,7 +55,7 @@ final class Exportador
         }, $columnas), $filas);
         $pdf->tabla(array_column($columnas, 0), $filasPdf, array_map(fn($c) => $c[3] ?? 20, $columnas),
             array_map(fn($c) => in_array($c[2] ?? 'texto', ['num', 'dinero', 'entero'], true) ? 'R' : 'L', $columnas));
-        if ($resumen) $pdf->totales(array_map(fn($v) => is_numeric($v) ? num($v, 2) : (string)$v, $resumen));
+        if ($resumen) $pdf->totales(array_map(fn($v) => is_int($v) ? num($v) : (is_numeric($v) ? num($v, 2) : (string)$v), $resumen));
         $pdf->Output('I', "$archivo.pdf");
         exit;
     }

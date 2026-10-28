@@ -13,7 +13,9 @@ final class UsuarioController extends Controller
     {
         $rows = DB::all('SELECT u.*, r.nombre AS rol, s.nombre AS sucursal FROM usuarios u
                          JOIN roles r ON r.id = u.rol_id LEFT JOIN sucursales s ON s.id = u.sucursal_id ORDER BY u.nombre');
-        $this->view('admin/usuarios', ['title' => 'Usuarios', 'rows' => $rows]);
+        [$roles, $permisos, $asignados] = RolController::matriz();
+        $this->view('admin/usuarios', ['title' => 'Usuarios y permisos', 'rows' => can('admin.usuarios') ? $rows : [],
+            'roles' => $roles, 'permisos' => $permisos, 'asignados' => $asignados]);
     }
 
     public function form(): void

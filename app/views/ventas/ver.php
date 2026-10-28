@@ -1,44 +1,60 @@
-<div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-  <a href="<?= url('ventas') ?>" class="btn btn-sm btn-light"><i class="bi bi-arrow-left"></i></a>
-  <h1 class="h4 mb-0 me-auto">Venta <?= e($v['numero']) ?> <?= badge_estado($v['estado']) ?></h1>
-  <a href="<?= url('ventas/comprobante', ['id' => $v['id']]) ?>" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-printer"></i> Imprimir</a>
-  <a href="<?= url('ventas/comprobante-pdf', ['id' => $v['id']]) ?>" target="_blank" class="btn btn-sm btn-outline-danger"><i class="bi bi-filetype-pdf"></i> PDF</a>
-  <?php if ($v['estado'] === 'ACTIVA' && can('ventas.anular')): ?>
-    <button class="btn btn-sm btn-danger" data-bs-toggle="collapse" data-bs-target="#anular"><i class="bi bi-x-octagon"></i> Anular</button>
-  <?php endif; ?>
+<?php
+$acc = '<a href="' . url('ventas/comprobante', ['id' => $v['id']]) . '" target="_blank" class="btn btn-light"><i class="bi bi-printer"></i> Imprimir</a>'
+     . '<a href="' . url('ventas/comprobante-pdf', ['id' => $v['id']]) . '" target="_blank" class="btn btn-light"><i class="bi bi-filetype-pdf"></i> PDF</a>';
+if ($v['estado'] === 'ACTIVA' && can('ventas.anular')) $acc .= '<button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#mAnular"><i class="bi bi-x-octagon"></i> Anular venta</button>';
+?>
+<?= ui_header('Venta ' . $v['numero'], fecha($v['fecha']) . ' · ' . badge_estado($v['estado']), $acc, url('ventas')) ?>
+
+<?php if ($v['estado'] === 'ANULADA'): ?><div class="alert alert-danger reveal"><i class="bi bi-x-octagon"></i><div><b>Venta anulada.</b> Motivo: <?= e($v['motivo_anulacion']) ?>. Las unidades regresaron al inventario.</div></div><?php endif; ?>
+
+<div class="row g-3 c-stagger">
+  <div class="col-lg-8">
+    <div class="c-card">
+      <div class="c-card__head"><h2 class="c-card__title">Detalle</h2><span class="c-pill c-pill--info is-count"><i class="bi bi-wallet2"></i> <?= e($v['metodo_pago']) ?></span></div>
+      <div class="c-table-wrap mt-2"><table class="c-table">
+        <thead><tr><th>Producto</th><th class="num">Cant.</th><th class="num c-hide-xs">Precio</th><th class="num">Subtotal</th></tr></thead>
+        <tbody><?php foreach ($det as $d): ?>
+          <tr><td><span class="c-code"><?= e($d['codigo']) ?></span><div><?= e($d['nombre']) ?></div></td><td class="num strong"><?= (int)$d['cantidad'] ?></td>
+            <td class="num c-hide-xs"><?= money($d['precio_unitario']) ?></td><td class="num"><?= money($d['subtotal']) ?></td></tr>
+        <?php endforeach; ?></tbody>
+      </table></div>
+      <div class="c-card__body pt-2"><div class="c-totals ms-auto" style="max-width:320px">
+        <div><span class="text-muted">Subtotal</span><span><?= money($v['subtotal']) ?></span></div>
+        <div><span class="text-muted">Descuento</span><span>− <?= money($v['descuento']) ?></span></div>
+        <div class="is-total"><span>Total</span><span><?= money($v['total']) ?></span></div>
+      </div></div>
+    </div>
+    <p class="small text-muted mt-2"><i class="bi bi-info-circle"></i> Comprobante administrativo interno. No válido como factura fiscal.</p>
+  </div>
+  <div class="col-lg-4">
+    <div class="c-card c-card__body">
+      <div class="c-eyebrow mb-2">Cliente</div>
+      <a href="<?= url('clientes/ver', ['id' => $v['cliente_id']]) ?>" class="d-flex align-items-center gap-3 mb-3 text-reset"><span class="c-avatar c-avatar--lg"><?= e(iniciales($v['cliente'])) ?></span>
+        <div class="min-w-0"><div class="fw-semibold text-truncate"><?= e($v['cliente']) ?></div><small class="text-muted"><?= e($v['cliente_doc']) ?></small></div></a>
+      <dl class="c-dl">
+        <dt>Pedido</dt><dd><a href="<?= url('pedidos/ver', ['id' => $v['pedido_id']]) ?>"><?= e($v['pedido_numero']) ?></a></dd>
+        <dt>Sucursal</dt><dd><?= e($v['sucursal']) ?></dd>
+        <dt>Atendido por</dt><dd><?= e($v['usuario'] ?: '—') ?></dd>
+        <dt>Fecha</dt><dd><?= fecha($v['fecha']) ?></dd>
+      </dl>
+    </div>
+  </div>
 </div>
+
 <?php if ($v['estado'] === 'ACTIVA' && can('ventas.anular')): ?>
-<div class="collapse mb-3" id="anular"><form method="post" action="<?= url('ventas/anular') ?>" class="card card-body border-danger">
-  <?= csrf_field() ?><input type="hidden" name="id" value="<?= $v['id'] ?>">
-  <label class="form-label">Motivo de la anulación *</label>
-  <input name="motivo" class="form-control mb-2" required maxlength="255">
-  <div class="small text-muted mb-2">Las unidades vendidas regresarán al inventario de <?= e($v['sucursal']) ?> y el pedido quedará CANCELADO.</div>
-  <div><button class="btn btn-danger btn-sm" onclick="return confirm('¿Anular definitivamente esta venta?')">Confirmar anulación</button></div>
-</form></div>
-<?php endif; ?>
-<?php if ($v['estado'] === 'ANULADA'): ?><div class="alert alert-danger">Venta anulada. Motivo: <?= e($v['motivo_anulacion']) ?></div><?php endif; ?>
-<div class="row g-3">
-  <div class="col-lg-4"><div class="card"><div class="card-body small">
-    <dl class="row mb-0">
-      <dt class="col-5">Fecha</dt><dd class="col-7"><?= fecha($v['fecha']) ?></dd>
-      <dt class="col-5">Cliente</dt><dd class="col-7"><a href="<?= url('clientes/ver', ['id' => $v['cliente_id']]) ?>"><?= e($v['cliente']) ?></a><br><?= e($v['cliente_doc']) ?></dd>
-      <dt class="col-5">Sucursal</dt><dd class="col-7"><?= e($v['sucursal']) ?></dd>
-      <dt class="col-5">Pedido</dt><dd class="col-7"><a href="<?= url('pedidos/ver', ['id' => $v['pedido_id']]) ?>"><?= e($v['pedido_numero']) ?></a></dd>
-      <dt class="col-5">Método</dt><dd class="col-7"><?= e($v['metodo_pago']) ?></dd>
-      <dt class="col-5">Vendedor</dt><dd class="col-7 mb-0"><?= e($v['usuario'] ?: '—') ?></dd>
-    </dl>
-  </div></div></div>
-  <div class="col-lg-8"><div class="card"><div class="table-responsive"><table class="table table-sm mb-0">
-    <thead><tr><th>Producto</th><th class="text-end">Cant.</th><th class="text-end">P. unit.</th><th class="text-end">Subtotal</th></tr></thead>
-    <tbody><?php foreach ($det as $d): ?>
-      <tr><td><span class="small text-muted"><?= e($d['codigo']) ?></span> <?= e($d['nombre']) ?></td><td class="text-end"><?= (int)$d['cantidad'] ?></td>
-        <td class="text-end"><?= money($d['precio_unitario']) ?></td><td class="text-end"><?= money($d['subtotal']) ?></td></tr>
-    <?php endforeach; ?></tbody>
-    <tfoot>
-      <tr><td colspan="3" class="text-end">Subtotal</td><td class="text-end"><?= money($v['subtotal']) ?></td></tr>
-      <tr><td colspan="3" class="text-end">Descuento</td><td class="text-end">− <?= money($v['descuento']) ?></td></tr>
-      <tr class="fw-bold fs-6"><td colspan="3" class="text-end">Total</td><td class="text-end"><?= money($v['total']) ?></td></tr>
-    </tfoot>
-  </table></div></div>
-  <p class="small text-muted mt-2">Comprobante administrativo interno. No válido como factura fiscal.</p></div>
+<div class="modal fade" id="mAnular" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:440px">
+    <form method="post" action="<?= url('ventas/anular') ?>" class="modal-content">
+      <?= csrf_field() ?><input type="hidden" name="id" value="<?= $v['id'] ?>">
+      <div class="modal-body pt-4">
+        <div class="c-confirm-ico is-danger"><i class="bi bi-x-octagon"></i></div>
+        <h2 class="modal-title mb-1">¿Anular la venta <?= e($v['numero']) ?>?</h2>
+        <p class="text-muted">Las unidades vendidas regresarán al inventario de <?= e($v['sucursal']) ?> y el pedido quedará cancelado.</p>
+        <label class="form-label" for="motivo">Motivo de la anulación</label>
+        <input name="motivo" id="motivo" class="form-control" required maxlength="255" placeholder="Ej.: el cliente devolvió el producto">
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Volver</button><button class="btn btn-danger">Sí, anular</button></div>
+    </form>
+  </div>
 </div>
+<?php endif; ?>

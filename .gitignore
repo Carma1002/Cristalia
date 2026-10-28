@@ -6,3 +6,5 @@ uploads/productos/*
 !uploads/productos/.gitkeep
 .DS_Store
 Thumbs.db
+uploads/empresa/*
+!uploads/empresa/.gitkeep
