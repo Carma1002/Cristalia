@@ -8,6 +8,7 @@ INSERT INTO configuracion (clave, valor) VALUES
 ('empresa_rif', 'J-00000000-0'),
 ('empresa_direccion', ''),
 ('moneda', '$'),
+('empresa_logo', ''),
 ('version_bd', '1');
 
 INSERT INTO roles (id, nombre, descripcion, es_sistema) VALUES

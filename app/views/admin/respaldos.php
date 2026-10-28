@@ -1,37 +1,39 @@
-<h1 class="h4 mb-3">Copias de seguridad</h1>
-<div class="row g-3">
+<?= ui_header('Respaldos', 'Copias de seguridad de toda la información. Descárguelas y guárdelas fuera del servidor.',
+    '<form method="post" action="' . url('respaldos/generar') . '" class="m-0">' . csrf_field() . '<button class="btn btn-primary"><i class="bi bi-cloud-plus"></i> Crear respaldo ahora</button></form>') ?>
+
+<div class="row g-3 c-stagger">
   <div class="col-lg-7">
-    <div class="card"><div class="card-header d-flex justify-content-between align-items-center">
-      <span>Respaldos en el servidor</span>
-      <form method="post" action="<?= url('respaldos/generar') ?>"><?= csrf_field() ?><button class="btn btn-sm btn-primary"><i class="bi bi-database-add"></i> Generar respaldo ahora</button></form>
+    <div class="c-card h-100">
+      <div class="c-card__head"><div><h2 class="c-card__title">Respaldos guardados</h2><p class="c-card__sub">Consejo: cree y descargue uno al cierre de cada día.</p></div><span class="c-pill c-pill--muted is-count"><?= count($rows) ?></span></div>
+      <?php if ($rows): ?>
+      <ul class="c-list mt-2">
+        <?php foreach ($rows as $r): ?>
+          <li><div>
+            <span class="c-list__ico"><i class="bi bi-database"></i></span>
+            <span class="c-list__main"><span class="c-list__title d-block"><?= fecha($r['fecha']) ?></span><span class="c-list__sub d-block"><?= e($r['archivo']) ?> · <?= num($r['tamano'] / 1024, 1) ?> KB</span></span>
+            <a class="btn btn-soft btn-sm" href="<?= url('respaldos/descargar', ['archivo' => $r['archivo']]) ?>"><i class="bi bi-download"></i><span class="c-hide-xs">Descargar</span></a>
+            <form method="post" action="<?= url('respaldos/eliminar') ?>" class="m-0" data-confirm="¿Eliminar este respaldo del servidor?" data-confirm-text="Si no lo descargó antes, se perderá." data-confirm-ok="Sí, eliminar" data-confirm-tone="danger"><?= csrf_field() ?>
+              <input type="hidden" name="archivo" value="<?= e($r['archivo']) ?>"><button class="btn btn-light btn-sm" title="Eliminar"><i class="bi bi-trash3"></i></button></form>
+          </div></li>
+        <?php endforeach; ?>
+      </ul>
+      <?php else: ?><?= empty_state('cloud', 'Aún no hay respaldos', 'Pulse “Crear respaldo ahora” para guardar una copia de toda la información.') ?><?php endif; ?>
     </div>
-      <div class="table-responsive"><table class="table table-sm align-middle mb-0">
-        <thead><tr><th>Archivo</th><th class="d-none d-sm-table-cell">Fecha</th><th class="text-end">Tamaño</th><th></th></tr></thead>
-        <tbody><?php foreach ($rows as $r): ?>
-          <tr><td class="small text-break"><?= e($r['archivo']) ?></td><td class="d-none d-sm-table-cell small"><?= fecha($r['fecha']) ?></td>
-            <td class="text-end small"><?= num($r['tamano'] / 1024, 1) ?> KB</td>
-            <td class="text-end text-nowrap">
-              <a class="btn btn-sm btn-outline-success" href="<?= url('respaldos/descargar', ['archivo' => $r['archivo']]) ?>" title="Descargar"><i class="bi bi-download"></i></a>
-              <form method="post" action="<?= url('respaldos/eliminar') ?>" class="d-inline" onsubmit="return confirm('¿Eliminar este respaldo del servidor?')"><?= csrf_field() ?>
-                <input type="hidden" name="archivo" value="<?= e($r['archivo']) ?>"><button class="btn btn-sm btn-outline-danger" title="Eliminar"><i class="bi bi-trash"></i></button></form>
-            </td></tr>
-        <?php endforeach; if (!$rows): ?><tr><td colspan="4" class="text-muted text-center py-3">Aún no hay respaldos.</td></tr><?php endif; ?></tbody>
-      </table></div>
-    </div>
-    <p class="small text-muted mt-2">Recomendación: genere un respaldo al cierre de cada día y descárguelo a otro equipo o a la nube. El hosting gratuito no garantiza la conservación de archivos.</p>
   </div>
   <div class="col-lg-5">
-    <div class="card border-danger"><div class="card-header text-danger"><i class="bi bi-exclamation-octagon"></i> Restaurar (recuperación de datos)</div><div class="card-body">
-      <form method="post" action="<?= url('respaldos/restaurar') ?>" enctype="multipart/form-data" onsubmit="return confirm('Se reemplazarán TODOS los datos actuales. ¿Continuar?')">
-        <?= csrf_field() ?>
-        <div class="mb-2"><label class="form-label small">Desde un respaldo del servidor</label>
-          <select name="archivo" class="form-select form-select-sm"><option value="">— o suba un archivo abajo —</option>
-            <?php foreach ($rows as $r): ?><option value="<?= e($r['archivo']) ?>"><?= e($r['archivo']) ?></option><?php endforeach; ?></select></div>
-        <div class="mb-2"><label class="form-label small">Archivo .sql descargado previamente</label><input type="file" name="respaldo" accept=".sql" class="form-control form-control-sm"></div>
-        <div class="mb-2"><label class="form-label small">Escriba <strong>RESTAURAR</strong> para confirmar</label><input name="confirmar" class="form-control form-control-sm" required autocomplete="off"></div>
-        <button class="btn btn-danger btn-sm w-100">Restaurar base de datos</button>
-        <div class="form-text">Antes de restaurar se crea automáticamente una copia del estado actual.</div>
-      </form>
-    </div></div>
+    <form method="post" action="<?= url('respaldos/restaurar') ?>" enctype="multipart/form-data" class="c-card c-card__body h-100" style="border-color:#F0C9C4"
+          data-confirm="¿Restaurar la base de datos?" data-confirm-text="Se reemplazará TODA la información actual por la del respaldo. Antes se guardará una copia automática." data-confirm-ok="Sí, restaurar" data-confirm-tone="danger">
+      <?= csrf_field() ?>
+      <h2 class="c-section-title" style="color:var(--c-bad)"><i class="bi bi-arrow-counterclockwise"></i> Recuperar información</h2>
+      <p class="small text-muted">Use esta opción sólo si necesita volver a un punto anterior (por ejemplo, después de un error grave).</p>
+      <label class="form-label">Desde un respaldo guardado</label>
+      <select name="archivo" class="form-select mb-3"><option value="">— o suba un archivo abajo —</option>
+        <?php foreach ($rows as $r): ?><option value="<?= e($r['archivo']) ?>"><?= fecha($r['fecha']) ?> · <?= e($r['archivo']) ?></option><?php endforeach; ?></select>
+      <label class="form-label">O desde un archivo .sql descargado</label>
+      <input type="file" name="respaldo" accept=".sql" class="form-control mb-3">
+      <label class="form-label">Escriba <code>RESTAURAR</code> para confirmar</label>
+      <input name="confirmar" class="form-control mb-3" required autocomplete="off" placeholder="RESTAURAR">
+      <button class="btn btn-danger w-100"><i class="bi bi-arrow-counterclockwise"></i> Restaurar</button>
+    </form>
   </div>
 </div>

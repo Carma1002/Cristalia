@@ -8,7 +8,7 @@ declare(strict_types=1);
 define('ROOT_PATH', dirname(__DIR__));
 define('APP_PATH', __DIR__);
 define('APP_NAME', 'Cristalia');
-define('APP_VERSION', '1.0.0');
+define('APP_VERSION', '2.0.0');
 
 mb_internal_encoding('UTF-8');
 
@@ -56,6 +56,7 @@ spl_autoload_register(function (string $class): void {
 });
 
 require APP_PATH . '/core/helpers.php';
+require APP_PATH . '/core/ui.php';
 
 // Errores no controlados: página amigable (detalle sólo en modo debug)
 set_exception_handler(function (Throwable $e) use ($debug): void {

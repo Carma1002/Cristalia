@@ -38,7 +38,8 @@ final class Pedido
             $w[] = '(p.numero LIKE :q1 OR c.nombre LIKE :q2 OR c.documento LIKE :q3)';
             $p['q1'] = $p['q2'] = $p['q3'] = '%' . $f['q'] . '%';
         }
-        if (!empty($f['estado']))      { $w[] = 'p.estado = :est'; $p['est'] = $f['estado']; }
+        if (($f['estado'] ?? '') === 'abiertos') $w[] = "p.estado IN ('PENDIENTE','CONFIRMADO')";
+        elseif (!empty($f['estado']))  { $w[] = 'p.estado = :est'; $p['est'] = $f['estado']; }
         if (!empty($f['sucursal_id'])) { $w[] = 'p.sucursal_id = :suc'; $p['suc'] = (int)$f['sucursal_id']; }
         if (!empty($f['cliente_id']))  { $w[] = 'p.cliente_id = :cli'; $p['cli'] = (int)$f['cliente_id']; }
         if (!empty($f['desde']))       { $w[] = 'p.fecha >= :d'; $p['d'] = $f['desde'] . ' 00:00:00'; }
@@ -51,6 +52,15 @@ final class Pedido
                          WHERE $ws ORDER BY p.id DESC LIMIT :lim OFFSET :off",
             array_merge($p, ['lim' => $limit, 'off' => $offset]));
         return [$rows, $total];
+    }
+
+    /** Cantidad de pedidos por estado (para los contadores de la lista). */
+    public static function contarPorEstado(?int $sucursalId = null): array
+    {
+        $out = array_fill_keys(self::ESTADOS, 0);
+        $sql = 'SELECT estado, COUNT(*) n FROM pedidos' . ($sucursalId ? ' WHERE sucursal_id = ' . (int)$sucursalId : '') . ' GROUP BY estado';
+        foreach (DB::all($sql) as $r) $out[$r['estado']] = (int)$r['n'];
+        return $out;
     }
 
     public static function contarAbiertos(?int $sucursalId = null): int

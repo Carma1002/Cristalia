@@ -1,22 +1,28 @@
-<div class="text-center mb-4">
-  <img src="assets/img/logo.svg" width="64" height="64" alt="">
-  <h1 class="h3 mt-2 mb-0"><?= APP_NAME ?></h1>
-  <p class="text-muted small"><?= e(ajuste('empresa_nombre')) ?></p>
-</div>
-<div class="card shadow-sm">
-  <div class="card-body p-4">
-    <form method="post" action="<?= url('login') ?>" autocomplete="on">
-      <?= csrf_field() ?>
-      <div class="mb-3">
-        <label class="form-label" for="usuario">Usuario</label>
-        <input class="form-control" id="usuario" name="usuario" value="<?= e(old('usuario')) ?>" required autofocus autocapitalize="none">
-      </div>
-      <div class="mb-3">
-        <label class="form-label" for="password">Contraseña</label>
-        <input class="form-control" type="password" id="password" name="password" required>
-      </div>
-      <button class="btn btn-primary w-100">Iniciar sesión</button>
-    </form>
+<?php $logo = logo_cliente(); ?>
+<div class="c-auth__client">
+  <?php if ($logo): ?><img src="<?= e($logo) ?>" alt=""><?php endif; ?>
+  <div class="min-w-0">
+    <div class="c-eyebrow">Acceso al sistema</div>
+    <div class="fw-semibold text-truncate"><?= e(ajuste('empresa_nombre')) ?></div>
   </div>
 </div>
-<p class="text-center text-muted small mt-3">Sistema de gestión de inventario, pedidos y ventas</p>
+<h1>Bienvenido</h1>
+<p class="text-muted mb-4">Ingrese con el usuario y la contraseña que le asignó el administrador.</p>
+<form method="post" action="<?= url('login') ?>" autocomplete="on">
+  <?= csrf_field() ?>
+  <div class="mb-3">
+    <label class="form-label" for="usuario">Usuario</label>
+    <div class="c-search"><i class="bi bi-person"></i>
+      <input class="form-control form-control-lg" id="usuario" name="usuario" value="<?= e(old('usuario')) ?>" required autofocus autocapitalize="none" placeholder="ej. maria.rodriguez">
+    </div>
+  </div>
+  <div class="mb-4">
+    <label class="form-label" for="password">Contraseña</label>
+    <div class="c-search c-pw"><i class="bi bi-lock"></i>
+      <input class="form-control form-control-lg" type="password" id="password" name="password" required placeholder="••••••••">
+      <button type="button" data-toggle-pw aria-label="Mostrar contraseña"><i class="bi bi-eye"></i></button>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-lg w-100">Entrar <i class="bi bi-arrow-right"></i></button>
+</form>
+<div class="c-auth__foot"><img src="assets/img/cristalia-isotipo.svg" alt=""> Cristalia · Sistema de información para la toma de decisiones</div>

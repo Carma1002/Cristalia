@@ -1,16 +1,44 @@
 <?php
 final class ProductoController extends Controller
 {
+    /**
+     * Productos: catálogo digital (tarjetas con imagen) y control de existencias (lista),
+     * con filtros por código, tipo, marca, modelo, año, sucursal y estado de stock.
+     */
     public function index(): void
     {
-        [$lim, $off, $page] = paginar(25);
+        // La vista elegida (tarjetas o lista) se recuerda durante la sesión
+        $vista = input('vista');
+        if (in_array($vista, ['tarjetas', 'lista'], true)) $_SESSION['vista_productos'] = $vista;
+        $vista = $_SESSION['vista_productos'] ?? 'tarjetas';
+        $gestiona = can('inventario.gestionar');
+
+        [$lim, $off, $page] = paginar($vista === 'lista' ? 30 : 24);
+        $estado = (string)input('estado', '');
         $f = [
             'q' => input('q', ''), 'tipo_id' => input_int('tipo_id'), 'marca' => input('marca', ''),
-            'activo' => input('activo', '1'), 'sucursal_id' => $this->sucursalFiltro(), 'orden' => input('orden', ''),
+            'modelo' => input('modelo', ''), 'anio' => input_int('anio'),
+            'activo' => $gestiona && $estado === 'inactivo' ? '0' : '1',
+            'sucursal_id' => Auth::sucursalFija() ?? input_int('sucursal_id'), 'orden' => input('orden', ''),
+            'estado' => in_array($estado, ['disponible', 'bajo', 'agotado'], true) ? $estado : '',
         ];
         [$rows, $total] = Producto::buscar($f, $lim, $off);
+        $conteo = Producto::contarEstados(array_merge($f, ['activo' => '1']));
+        if ($gestiona) $conteo['inactivo'] = Producto::buscar(array_merge($f, ['activo' => '0', 'estado' => '']), 1, 0)[1];
+
+        // Existencias por sucursal de los productos mostrados
+        $disp = [];
+        if ($rows) {
+            $in = implode(',', array_map(fn($r) => (int)$r['id'], $rows));
+            foreach (DB::all("SELECT e.producto_id, s.id AS sucursal_id, s.nombre, e.cantidad FROM existencias e
+                              JOIN sucursales s ON s.id = e.sucursal_id AND s.activo = 1
+                              WHERE e.producto_id IN ($in) ORDER BY s.nombre") as $e) {
+                $disp[$e['producto_id']][$e['sucursal_id']] = $e;
+            }
+        }
         $this->view('productos/index', [
             'title' => 'Productos', 'rows' => $rows, 'total' => $total, 'page' => $page, 'lim' => $lim, 'f' => $f,
+            'estado' => $estado, 'vista' => $vista, 'conteo' => $conteo, 'disp' => $disp,
             'tipos' => Producto::tipos(), 'marcas' => Producto::marcas(), 'sucursales' => Sucursal::delUsuario(),
         ]);
     }

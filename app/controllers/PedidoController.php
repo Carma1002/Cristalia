@@ -11,7 +11,7 @@ final class PedidoController extends Controller
         [$rows, $total] = Pedido::buscar($f, $lim, $off);
         $this->view('pedidos/index', [
             'title' => 'Pedidos', 'rows' => $rows, 'total' => $total, 'page' => $page, 'lim' => $lim, 'f' => $f,
-            'sucursales' => Sucursal::delUsuario(),
+            'sucursales' => Sucursal::delUsuario(), 'conteo' => Pedido::contarPorEstado($f['sucursal_id']),
         ]);
     }
 
@@ -61,7 +61,7 @@ final class PedidoController extends Controller
         $cants = (array)($_POST['cantidad'] ?? []);
         foreach ($pids as $i => $pid) $items[] = ['producto_id' => (int)$pid, 'cantidad' => (int)($cants[$i] ?? 0)];
         $id = PedidoService::crear((int)input_int('cliente_id', 0), (int)input_int('sucursal_id', 0), $items, (string)input('observaciones', ''));
-        flash('success', 'Pedido creado. Las existencias quedaron reservadas hasta registrar la venta o cancelar el pedido.');
+        flash('success', 'Pedido creado. Las unidades quedaron apartadas hasta que se registre la venta o se cancele.');
         redirect('pedidos/ver', ['id' => $id]);
     }
 
@@ -71,7 +71,9 @@ final class PedidoController extends Controller
         $id = (int)input_int('id', 0);
         $nuevo = (string)input('estado', '');
         PedidoService::cambiarEstado($id, $nuevo, (string)input('nota', ''));
-        flash('success', "Pedido actualizado a $nuevo.");
+        flash('success', ['CONFIRMADO' => 'Pedido confirmado. Ya puede registrar la venta cuando el cliente pague.',
+                          'CANCELADO' => 'Pedido cancelado. Las unidades apartadas volvieron a estar disponibles.',
+                          'PENDIENTE' => 'El pedido volvió a quedar pendiente.'][$nuevo] ?? 'Pedido actualizado.');
         redirect('pedidos/ver', ['id' => $id]);
     }
 }

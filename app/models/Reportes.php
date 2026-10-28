@@ -77,6 +77,34 @@ final class Reportes
         return $rows;
     }
 
+    /**
+     * Reporte de inventario unificado por producto: existencia, estado, valor y rotación del período.
+     * Reúne en una sola tabla el inventario valorizado, la rotación y los productos por reponer.
+     */
+    public static function inventarioDetallado(?int $suc, ?int $tipoId, bool $soloReponer, string $desde, string $hasta): array
+    {
+        $rot = array_column(self::rotacion($desde, $hasta, $suc), null, 'id');
+        $bajos = array_flip(array_map('intval', array_column(Producto::stockBajo($suc, 100000), 'id')));
+        $sql = 'SELECT p.id, p.codigo, p.nombre, p.stock_minimo, p.costo, p.precio, t.nombre AS tipo
+                FROM productos p JOIN tipos_producto t ON t.id = p.tipo_id WHERE p.activo = 1';
+        $par = [];
+        if ($tipoId) { $sql .= ' AND p.tipo_id = ?'; $par[] = $tipoId; }
+        $out = [];
+        foreach (DB::all("$sql ORDER BY p.nombre", $par) as $p) {
+            $r = $rot[$p['id']] ?? ['stock_actual' => 0, 'vendidas' => 0, 'rotacion' => 0, 'dias_inventario' => null, 'stock_promedio' => 0];
+            $ex = (int)$r['stock_actual'];
+            $estado = $ex <= 0 ? 'Agotado' : (isset($bajos[(int)$p['id']]) ? 'Por reponer' : 'Disponible');
+            if ($soloReponer && $estado === 'Disponible') continue;
+            $out[] = $p + [
+                'existencia' => $ex, 'estado' => $estado,
+                'valor_costo' => round($ex * (float)$p['costo'], 2), 'valor_venta' => round($ex * (float)$p['precio'], 2),
+                'vendidas' => (int)$r['vendidas'], 'stock_promedio' => $r['stock_promedio'],
+                'rotacion' => $r['rotacion'], 'dias_inventario' => $r['dias_inventario'],
+            ];
+        }
+        return $out;
+    }
+
     /** Inventario valorizado por producto (y sucursal opcional). */
     public static function inventario(?int $suc, ?int $tipoId = null, bool $soloBajo = false): array
     {

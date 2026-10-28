@@ -81,25 +81,64 @@ final class AdminController extends Controller
         redirect('respaldos');
     }
 
-    public function configuracion(): void
+    /** Empresa y sucursales: datos del cliente, logo, sucursales y tipos de producto. */
+    public function empresa(): void
     {
-        $this->view('admin/configuracion', [
-            'title' => 'Configuración',
+        $this->view('admin/empresa', [
+            'title' => 'Empresa y sucursales',
             'tipos' => DB::all('SELECT t.*, (SELECT COUNT(*) FROM productos p WHERE p.tipo_id = t.id) AS productos FROM tipos_producto t ORDER BY nombre'),
+            'sucursales' => DB::all("SELECT s.*,
+                (SELECT COUNT(*) FROM usuarios u WHERE u.sucursal_id = s.id AND u.activo = 1) AS usuarios,
+                (SELECT COALESCE(SUM(e.cantidad),0) FROM existencias e WHERE e.sucursal_id = s.id) AS unidades,
+                (SELECT COUNT(*) FROM pedidos p WHERE p.sucursal_id = s.id AND p.estado IN ('PENDIENTE','CONFIRMADO')) AS pedidos_abiertos,
+                (SELECT COALESCE(SUM(v.total),0) FROM ventas v WHERE v.sucursal_id = s.id AND v.estado = 'ACTIVA' AND v.fecha >= :ini) AS ventas_mes
+                FROM sucursales s ORDER BY s.activo DESC, s.nombre", ['ini' => date('Y-m-01 00:00:00')]),
         ]);
     }
 
     public function guardarConfiguracion(): void
     {
         $this->requirePost();
-        foreach (['empresa_nombre', 'empresa_rif', 'empresa_direccion', 'moneda'] as $k) {
+        $datos = [];
+        foreach (['empresa_nombre' => true, 'empresa_rif' => true, 'empresa_direccion' => false, 'moneda' => true] as $k => $obligatorio) {
             $v = mb_substr((string)input($k, ''), 0, 255);
-            if ($v === '') throw new AppException('Complete todos los campos.');
-            DB::run('UPDATE configuracion SET valor = ? WHERE clave = ?', [$v, $k]);
+            if ($obligatorio && $v === '') throw new AppException('Complete el nombre, el RIF y el símbolo de moneda.');
+            $datos[$k] = $v;
         }
-        Bitacora::log('administracion', 'configuracion', 'Datos de la empresa actualizados');
-        flash('success', 'Configuración guardada.');
-        redirect('configuracion');
+        $logo = $this->subirLogo();
+        if ($logo) $datos['empresa_logo'] = $logo;
+        elseif (input('quitar_logo')) $datos['empresa_logo'] = '';
+        $anterior = ajuste('empresa_logo');
+        foreach ($datos as $k => $v) self::guardarAjuste($k, $v);
+        if (array_key_exists('empresa_logo', $datos) && $anterior && str_starts_with($anterior, 'uploads/empresa/')) @unlink(ROOT_PATH . '/' . $anterior);
+        Bitacora::log('administracion', 'configuracion', 'Datos de la empresa actualizados' . ($logo ? ' (nuevo logo)' : ''));
+        flash('success', 'Datos de la empresa guardados.');
+        redirect('empresa');
+    }
+
+    /** Inserta o actualiza un valor de la tabla de configuración (sin cambiar la estructura de la BD). */
+    public static function guardarAjuste(string $clave, string $valor): void
+    {
+        if (DB::value('SELECT COUNT(*) FROM configuracion WHERE clave = ?', [$clave])) {
+            DB::run('UPDATE configuracion SET valor = ? WHERE clave = ?', [$valor, $clave]);
+        } else {
+            DB::insert('configuracion', ['clave' => $clave, 'valor' => $valor]);
+        }
+    }
+
+    private function subirLogo(): ?string
+    {
+        $f = $_FILES['logo'] ?? null;
+        if (!$f || ($f['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return null;
+        if ($f['error'] !== UPLOAD_ERR_OK) throw new AppException('No se pudo subir el logo (código ' . $f['error'] . ').');
+        if ($f['size'] > 1024 * 1024) throw new AppException('El logo no debe superar 1 MB.');
+        $ext = match (@getimagesize($f['tmp_name'])['mime'] ?? '') { 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', default => null };
+        if (!$ext) throw new AppException('El logo debe ser una imagen PNG, JPG o WEBP.');
+        $dir = ROOT_PATH . '/uploads/empresa';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        $name = 'logo_' . bin2hex(random_bytes(6)) . '.' . $ext;
+        if (!move_uploaded_file($f['tmp_name'], "$dir/$name")) throw new AppException('No se pudo guardar el logo en el servidor.');
+        return "uploads/empresa/$name";
     }
 
     public function guardarTipo(): void
@@ -112,7 +151,7 @@ final class AdminController extends Controller
             DB::run('DELETE FROM tipos_producto WHERE id = ?', [$id]);
             Bitacora::log('administracion', 'tipo_eliminar', "#$id");
             flash('success', 'Tipo eliminado.');
-            redirect('configuracion');
+            redirect('empresa');
         }
         if (mb_strlen($nombre) < 3) throw new AppException('Indique el nombre del tipo de producto.');
         if (DB::value('SELECT id FROM tipos_producto WHERE nombre = ? AND id <> ?', [$nombre, $id ?? 0])) throw new AppException('Ese tipo ya existe.');
@@ -120,6 +159,6 @@ final class AdminController extends Controller
         else DB::insert('tipos_producto', ['nombre' => $nombre]);
         Bitacora::log('administracion', 'tipo_guardar', $nombre);
         flash('success', 'Tipo de producto guardado.');
-        redirect('configuracion');
+        redirect('empresa');
     }
 }

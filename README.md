@@ -7,16 +7,24 @@ Proyecto de trabajo de grado. Aplicación web en PHP + MySQL con arquitectura de
 
 ---
 
-## Funciones
+## Cómo está organizado
 
-| Módulo | Qué hace |
-|---|---|
-| **Seguridad y accesos** | Inicio/cierre de sesión, contraseñas cifradas (bcrypt), bloqueo tras 5 intentos fallidos, cierre por inactividad, protección CSRF. Usuarios, roles y permisos editables (Administrador, Ventas/Facturación, Almacén). Bitácora de operaciones críticas. |
-| **Inventario** | Productos (código, tipo, vehículo, años, precio, costo, imagen, stock mínimo). Entradas, salidas y ajustes por conteo físico. Existencias por sucursal. Kardex completo. Alertas de stock mínimo. |
-| **Catálogo digital** | Búsqueda y filtros por código, tipo, marca, modelo y año. Imagen, precio y disponibilidad por sucursal. |
-| **Clientes, pedidos y ventas** | Clientes (V/E/J/G/P). Pedidos con verificación de existencias y **reserva** de unidades. Estados: PENDIENTE → CONFIRMADO → COMPLETADO / CANCELADO, con historial. Venta desde el pedido con **descuento automático del inventario** en una transacción. Anulación que devuelve el inventario. Comprobante interno imprimible y en PDF. |
-| **Reportes e indicadores** | Panel con ventas del día y del mes, pedidos abiertos, alertas, valor del inventario, gráfico de 12 meses, más vendidos y rotación. Reportes de ventas (por día, mes, sucursal, vendedor o método de pago), por producto, inventario valorizado, rotación y movimientos. **Exportación a PDF y Excel.** |
-| **Administración** | Sucursales, usuarios asignados a sucursal, datos de la empresa, tipos de producto, **copias de seguridad y restauración** desde la propia aplicación. |
+La interfaz tiene **5 secciones** en la barra superior (en el celular, en una barra inferior). Cada sección agrupa sus pantallas en pestañas:
+
+| Sección | Pestañas | Qué cubre de la tesis |
+|---|---|---|
+| **Inicio** | — | Panel de indicadores: ventas del día y del mes, pedidos por completar, productos por reponer, ventas mensuales, ventas por sucursal, más vendidos y accesos rápidos. |
+| **Inventario** | Productos · Entradas y salidas | Catálogo digital (vista de tarjetas con imagen, precio y disponibilidad), existencias por sucursal (vista de lista), alertas de stock mínimo (filtro *Por reponer*), entradas, salidas y ajustes por conteo con su kardex. |
+| **Comercio** | Pedidos · Ventas · Clientes | Clientes; pedidos que verifican y **apartan** existencias, con estados (Pendiente → Confirmado → Completado / Cancelado); venta desde el pedido con **descuento automático del inventario**; anulación; comprobante interno imprimible y en PDF. |
+| **Reportes** | Ventas · Inventario | Ventas por día, mes, sucursal, vendedor o método de pago y productos más vendidos; inventario valorizado con estado de stock y **rotación**. Todo se exporta a **PDF y Excel**. |
+| **Administración** | Usuarios y permisos · Empresa y sucursales · Respaldos · Bitácora | Usuarios asignados a sucursal; permisos de los 3 roles (Administrador, Ventas/Facturación, Almacén) en una tabla de casillas; datos y logo de la empresa; sucursales; tipos de producto; copias de seguridad y restauración; bitácora de operaciones. |
+
+Cada usuario sólo ve las secciones que su rol le permite.
+
+### Identidad visual
+Cristalia usa su manual de marca: Azul Cristalia `#0F536B`, Azul Profundo `#092E3D`, Cian Faceta `#3FA7BF`, Hielo, Bruma, Pizarra y Grafito; tipografías **Poppins** (títulos y cifras) e **Inter** (textos), incluidas en `assets/vendor/fonts`. Los logotipos están en `assets/img` como SVG.
+
+La empresa que usa el sistema (el cliente) aparece con **su propio logo** en el inicio de sesión, el menú de usuario, los comprobantes y los PDF. Se cambia en *Administración → Empresa y sucursales*.
 
 ### Reglas de negocio garantizadas
 - Ninguna existencia puede quedar negativa (validación en código + restricción `CHECK` en la base de datos).
@@ -45,6 +53,7 @@ install.php            Instalador web (se bloquea solo después de instalar)
 app/
   bootstrap.php        Arranque: sesión, configuración, autoload
   routes.php           Rutas y permiso requerido por cada una
+  nav.php              Menú: 5 secciones y sus pestañas
   core/                DB (PDO), Auth, Bitácora, Vista, PDF, Exportador, utilidades
   models/              Capa de datos: consultas SQL
   services/            Reglas de negocio: Inventario, Pedidos, Ventas, Respaldos
@@ -52,7 +61,7 @@ app/
   views/               Capa de presentación (plantillas)
   lib/                 FPDF y SimpleXLSXGen
   storage/backups/     Respaldos generados (protegido)
-assets/                CSS, JS, logo y librerías de interfaz
+assets/                Estilos, interacciones, logotipos, fuentes y librerías de interfaz
 database/
   schema.sql           Tablas
   seed.sql             Roles, permisos, tipos de producto
@@ -115,6 +124,15 @@ El proyecto se entrega en paquetes ZIP. `Cristalia_completo.zip` trae todo (idea
 
 > InfinityFree puede tardar unos minutos en activar el subdominio y el certificado SSL. Si el instalador no puede escribir `app/config.php`, muestra el contenido para crearlo a mano desde el administrador de archivos.
 
+## Actualizar una instalación existente (InfinityFree o localhost)
+
+La versión 2.0 **no cambia la base de datos**: basta con reemplazar los archivos. Los datos, usuarios y `app/config.php` se conservan.
+
+1. Descargue el proyecto desde GitHub (**Code → Download ZIP**).
+2. Suba y reemplace en el servidor las carpetas `app`, `assets`, `database` y los archivos `index.php`, `install.php` y `_verificar.php`. **No borre** `app/config.php` ni la carpeta `uploads` (allí están las fotos de los productos).
+3. Opcional: puede borrar estos archivos que ya no se usan (si quedan, no afectan): `app/controllers/CatalogoController.php`, `app/views/catalogo/`, `app/views/inventario/existencias.php`, `app/views/inventario/stock_bajo.php`, `app/views/dashboard/simple.php`, `app/views/reportes/index.php`, `app/views/reportes/productos.php`, `app/views/reportes/rotacion.php`, `app/views/reportes/movimientos.php`, `app/views/reportes/_barra.php`, `app/views/admin/roles.php`, `app/views/admin/rol_form.php`, `app/views/admin/sucursales.php`, `app/views/admin/sucursal_form.php`, `app/views/admin/configuracion.php`, `assets/img/logo.svg`.
+4. Si el navegador muestra el estilo anterior, recargue con `Ctrl + F5`.
+
 ## Usuarios de demostración
 (Solo si se marcó la casilla de datos de demostración. El instalador genera una contraseña temporal aleatoria y la muestra al finalizar.)
 
@@ -131,4 +149,4 @@ El administrador es el que se crea en el instalador.
 *Administración → Respaldos*: genera un archivo `.sql` completo, permite descargarlo y restaurarlo (desde el servidor o subiendo el archivo). Antes de restaurar se crea una copia automática. El hosting gratuito no garantiza conservar archivos: descargue los respaldos a otro equipo.
 
 ## Licencias de terceros
-Bootstrap y Bootstrap Icons (MIT), Chart.js (MIT), FPDF (licencia libre), SimpleXLSXGen (MIT). Sus licencias están junto a cada librería.
+Bootstrap y Bootstrap Icons (MIT), Chart.js (MIT), FPDF (licencia libre), SimpleXLSXGen (MIT), fuentes Poppins, Inter y Montserrat (SIL Open Font License). Sus licencias están junto a cada librería.
